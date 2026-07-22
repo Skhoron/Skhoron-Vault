@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        АРХИТЕКТУРНЫЙ ИНВАРИАНТ: здесь НЕ ДОЛЖНО появиться <uses-permission
+        android:name="android.permission.INTERNET" />. Без него ОС на уровне ядра
+        блокирует любые сокеты для этого UID. Это единственная гарантия сильнее
+        любой проверки в коде. Не добавляй сетевые permissions в этот файл.
+    -->
+
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <application
+        android:name=".SkhoronVaultApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.SkhoronVault"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:process=":vault">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".autofill.SkhoronAutofillService"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE"
+            android:process=":vault"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.autofill.AutofillService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.autofill"
+                android:resource="@xml/autofill_service" />
+        </service>
+
+    </application>
+</manifest>
