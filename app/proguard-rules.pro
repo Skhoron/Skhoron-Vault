@@ -1,0 +1,3 @@
+-keep class org.bouncycastle.** { *; }
+-keep class net.sqlcipher.** { *; }
+-dontwarn org.bouncycastle.**
