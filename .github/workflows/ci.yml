@@ -18,14 +18,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: '8.5'   # можно изменить при необходимости
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Lint
-        run: ./gradlew lint --stacktrace
+        run: gradle lint --stacktrace
 
       - name: Upload lint report
         if: always()
