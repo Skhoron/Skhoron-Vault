@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Skhoron Vault</string>
+    <string name="unlock_title">Skhoron Vault</string>
+    <string name="unlock_subtitle">Полностью локально. Без серверов.</string>
+    <string name="master_password_hint">Мастер-пароль</string>
+    <string name="unlock_button">Разблокировать</string>
+    <string name="create_vault_button">Создать хранилище</string>
+    <string name="vault_empty">Записей пока нет</string>
+    <string name="add_entry">Добавить</string>
+    <string name="generate_password">Сгенерировать пароль</string>
+    <string name="entropy_label">Энтропия: %1$d бит</string>
+    <string name="entropy_comparison">сильнее, чем протонов в наблюдаемой Вселенной</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="label_hint">Название (например, github.com)</string>
+    <string name="username_hint">Логин (необязательно)</string>
+    <string name="password_length">Длина пароля</string>
+</resources>
