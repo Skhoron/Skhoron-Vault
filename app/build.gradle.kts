@@ -63,8 +63,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
-    implementation("net.zetetic:android-database-sqlcipher:4.5.6")
-    implementation("androidx.sqlite:sqlite:2.4.0")
+    implementation("net.zetetic:sqlcipher-android:4.17.0")
+    implementation("androidx.sqlite:sqlite:2.6.2")
 
     // --- Автозаполнение / биометрия ---
     implementation("androidx.biometric:biometric:1.1.0")
