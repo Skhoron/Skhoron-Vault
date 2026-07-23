@@ -24,10 +24,10 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Lint
-        run: gradle lint --stacktrace
+        run: ./gradlew lint --stacktrace
 
       - name: Upload lint report
         if: always()
