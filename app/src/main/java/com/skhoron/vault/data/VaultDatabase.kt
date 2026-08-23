@@ -9,13 +9,13 @@ import net.sqlcipher.database.SupportFactory
 
 /**
  * VaultDatabase — SQLCipher-зашифрованный файл БД + шифрование каждого поля
- * на уровне приложения (VaultCrypto). Двойной слой: даже если кто-то получит
- * доступ к файлу БД напрямую (root, физический доступ к устройству), поля
- * password_ciphertext всё равно зашифрованы отдельным ключом.
+ * на уровне приложения (VaultCrypto).
  *
- * passphrase для SQLCipher выводится из того же Argon2id master key, но с
- * доменным разделением (другая соль/контекст), чтобы компрометация одного
- * ключа не давала оба слоя защиты сразу.
+ * Намеренно НЕТ fallbackToDestructiveMigration(): при несовместимой схеме
+ * (например, после апдейта приложения без написанной миграции) приложение
+ * упадёт с понятным исключением вместо того, чтобы молча стереть все
+ * данные пользователя. Падать громко — осознанное решение для password
+ * manager, пока не появятся отдельные migration-тесты.
  */
 @Database(entities = [VaultEntryRow::class], version = 1, exportSchema = false)
 abstract class VaultDatabase : RoomDatabase() {
@@ -31,7 +31,6 @@ abstract class VaultDatabase : RoomDatabase() {
                 "skhoron_vault.db"
             )
                 .openHelperFactory(factory)
-                .fallbackToDestructiveMigration() // приемлемо для v0.1, до появления реальных миграций
                 .build()
         }
     }
