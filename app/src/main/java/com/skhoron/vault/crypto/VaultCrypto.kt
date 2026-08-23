@@ -1,11 +1,9 @@
 package com.skhoron.vault.crypto
 
-import org.bouncycastle.crypto.engines.ChaCha7539Engine
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
-import org.bouncycastle.crypto.macs.Poly1305
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305
-import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.crypto.params.AEADParameters
+import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.crypto.params.KeyParameter
 import java.security.SecureRandom
 
@@ -13,17 +11,23 @@ import java.security.SecureRandom
  * VaultCrypto — ядро шифрования Skhoron Vault.
  *
  * АРХИТЕКТУРНЫЙ ИНВАРИАНТ: этот пакет (vault.crypto) не содержит и не должен
- * содержать сетевых вызовов. Проверяется CI-lint шагом (см. README.md).
+ * содержать сетевых вызовов.
  *
- * masterKey существует только в оперативной памяти, никогда не сериализуется
- * на диск. zeroize() вызывается при блокировке vault'а.
+ * ВАЖНО — честное название примитива: используется ChaCha20-Poly1305
+ * (RFC 7539, 96-бит/12-байтный nonce), а НЕ XChaCha20-Poly1305 (192-бит
+ * nonce, требует HChaCha20 subkey derivation). Более раннее название в
+ * коде/README было неточным — это фиксирует несоответствие.
  *
- * Реализация на чистом BouncyCastle (JVM), без нативного Rust-кода — это
- * сознательный компромисс для быстрой сборки в Android Studio без NDK.
- * У чистого JVM есть ограничение: GC может скопировать байты массива до того,
- * как мы вызовем fill(0). Для продакшен-версии рекомендуется миграция на
- * Rust-крейт (например, существующий smn-crypto-core) через UniFFI —
- * тогда zeroize гарантирован на уровне памяти процесса.
+ * Почему 96-битного nonce достаточно здесь: nonce генерируется случайно
+ * (SecureRandom) для каждой записи. Риск коллизии двух nonce для одного
+ * ключа пренебрежимо мал для объёма записей одного личного vault'а —
+ * по birthday bound нужно ~2^48 записей для 50%-й вероятности коллизии.
+ * Если в будущем понадобится гарантия, не зависящая от объёма записей
+ * (честный XChaCha20 с расширенным nonce) — это отдельная реализация
+ * поверх HChaCha20 subkey derivation, которой сейчас нет.
+ *
+ * masterKey существует только в оперативной памяти на время разблокированной
+ * сессии, никогда не сериализуется на диск.
  */
 
 object Argon2Params {
@@ -32,10 +36,17 @@ object Argon2Params {
     const val PARALLELISM = 4
     const val SALT_LEN = 16
     const val KEY_LEN = 32        // 256 бит
-    const val NONCE_LEN = 12      // BC ChaCha20Poly1305 API работает с 12-байтовым nonce (RFC 7539)
+    const val NONCE_LEN = 12      // ChaCha20-Poly1305 (RFC 7539) — 96-бит nonce
 }
 
-class DerivedKey(val keyBytes: ByteArray, val salt: ByteArray) {
+/**
+ * Ключ для шифрования/расшифровки. Соль здесь намеренно НЕ хранится —
+ * она нужна только на этапе вывода ключа (Argon2id) и не является частью
+ * материала ключа; хранение её здесь было избыточным и создавало риск,
+ * что метод zeroize() создаёт ложное впечатление полной очистки, тогда
+ * как соль (не секрет, но лишняя ссылка) продолжала бы жить в памяти.
+ */
+class DerivedKey(val keyBytes: ByteArray) {
     fun zeroize() { keyBytes.fill(0) }
 }
 
@@ -51,8 +62,10 @@ class VaultCrypto {
 
     fun generateNonce(): ByteArray = ByteArray(Argon2Params.NONCE_LEN).also { secureRandom.nextBytes(it) }
 
-    /** Argon2id: пароль юзера + соль -> 256-битный ключ. Работает в фоновом потоке
-     *  (вызывающая сторона должна использовать Dispatchers.Default, т.к. это ~0.5-1.5 сек). */
+    /** Argon2id: пароль (уже как ByteArray, без промежуточного String на
+     *  вызывающей стороне) + соль -> 256-битный ключ. Тяжёлая операция
+     *  (~0.5–1.5 сек) — вызывающая сторона должна использовать
+     *  Dispatchers.Default, а не запускать на UI-потоке. */
     fun deriveMasterKey(password: ByteArray, salt: ByteArray): DerivedKey {
         val builder = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
             .withVersion(Argon2Parameters.ARGON2_VERSION_13)
@@ -66,10 +79,9 @@ class VaultCrypto {
 
         val out = ByteArray(Argon2Params.KEY_LEN)
         generator.generateBytes(password, out)
-        return DerivedKey(out, salt)
+        return DerivedKey(out)
     }
 
-    /** Шифрует данные записи. aad (например, entryId) защищён от подмены, но не шифруется. */
     fun encryptEntry(masterKey: DerivedKey, plaintext: ByteArray, aad: ByteArray? = null): EncryptedBlob {
         val nonce = generateNonce()
         val cipher = ChaCha20Poly1305()
@@ -85,8 +97,6 @@ class VaultCrypto {
         return EncryptedBlob(out.copyOf(len), nonce)
     }
 
-    /** Расшифровывает запись. Бросает VaultCryptoException при неверном мастер-пароле
-     *  или при попытке подмены ciphertext (Poly1305 tag mismatch). */
     fun decryptEntry(masterKey: DerivedKey, blob: EncryptedBlob, aad: ByteArray? = null): ByteArray {
         val cipher = ChaCha20Poly1305()
         cipher.init(false, AEADParameters(KeyParameter(masterKey.keyBytes), 128, blob.nonce, aad))
