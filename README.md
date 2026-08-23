@@ -79,7 +79,3 @@
 invariant (отсутствие `INTERNET` permission и сетевых классов в исходниках).
 Использует `gradle/actions/setup-gradle` с явно закреплённой версией Gradle
 8.7 — не зависит от закоммиченного Gradle Wrapper.
-
-## Иконка
-
-Щит с вертикальной прорезью — `res/drawable/ic_shield_*.xml`, adaptive icon.
