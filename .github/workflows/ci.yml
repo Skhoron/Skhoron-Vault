@@ -34,10 +34,10 @@ jobs:
           gradle-version: '8.7'
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: gradle testDebugUnitTest --stacktrace
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Merged manifest must not contain INTERNET
         run: python3 .github/scripts/check_network_invariant.py --require-merged
@@ -51,7 +51,7 @@ jobs:
           retention-days: 30
 
       - name: Lint
-        run: ./gradlew lint --stacktrace
+        run: gradle lint --stacktrace
 
       - name: Upload lint report
         if: always()
