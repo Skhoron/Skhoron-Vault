@@ -1,0 +1,8 @@
+<resources>
+    <color name="skhoron_bg">#0A0A0C</color>
+    <color name="skhoron_surface">#151518</color>
+    <color name="skhoron_accent">#5B8CFF</color>
+    <color name="skhoron_text">#F2F2F4</color>
+    <color name="skhoron_text_dim">#8A8A92</color>
+    <color name="skhoron_danger">#FF5B6E</color>
+</resources>
