@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.SkhoronVault" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/skhoron_bg</item>
+        <item name="android:navigationBarColor">@color/skhoron_bg</item>
+        <item name="android:windowBackground">@color/skhoron_bg</item>
+    </style>
+</resources>
