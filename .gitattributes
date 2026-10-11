@@ -1,0 +1,38 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Kotlin files
+*.kt linguist-language=Kotlin
+*.kts linguist-language=Kotlin
+
+# Java files
+*.java linguist-language=Java
+
+# XML files (Android resources, Gradle)
+*.xml linguist-language=XML
+
+# Gradle files
+*.gradle linguist-vendored
+gradlew linguist-vendored
+gradlew.bat linguist-vendored
+
+# Build artifacts and generated files
+build/** linguist-generated
+.gradle/** linguist-generated
+*.class linguist-generated
+
+# HTML files (mark as vendored to exclude from stats)
+*.html linguist-vendored
+
+# Documentation
+*.md text
+
+# JSON configuration
+*.json text
+
+# Properties files
+*.properties text
+
+# YAML configuration
+*.yml text
+*.yaml text
