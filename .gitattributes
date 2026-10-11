@@ -36,3 +36,6 @@ build/** linguist-generated
 # YAML configuration
 *.yml text
 *.yaml text
+
+# Gradle wrapper jar: binary, no line-ending conversion
+*.jar binary
