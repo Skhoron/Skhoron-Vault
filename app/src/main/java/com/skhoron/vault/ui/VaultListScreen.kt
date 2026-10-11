@@ -22,6 +22,7 @@ import com.skhoron.vault.ui.theme.SkhoronTextDim
 
 data class VaultListItem(val id: String, val label: String, val username: String?)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VaultListScreen(
     entries: List<VaultListItem>,
