@@ -1,4 +1,4 @@
-Skhoron Vault
+# Skhoron Vault
 
 A local password manager for Android, part of the Skhoron ecosystem.
 
