@@ -1,83 +1,68 @@
-# Skhoron Vault
+Skhoron Vault
 
-Локальный менеджер паролей для Android, часть экосистемы Skhoron.
+A local password manager for Android, part of the Skhoron ecosystem.
 
-## Нет сети
+No Network
 
-В `AndroidManifest.xml` нет разрешения `INTERNET`, без него ОС блокирует сокеты
-приложения. Манифесты библиотек сливаются с нашим, поэтому INTERNET явно
-удалён через `tools:node="remove"`, а CI проверяет исходный и слитый манифест
-(`.github/scripts/check_network_invariant.py`) и исходники на сетевые классы.
+There is no "INTERNET" permission in "AndroidManifest.xml"; without it, the OS blocks the app's sockets. Library manifests are merged with ours, so "INTERNET" is explicitly removed using "tools:node="remove"", and CI checks both the source and merged manifests (".github/scripts/check_network_invariant.py") as well as the source files for network classes.
 
-## Как устроено хранение
+How Storage Works
 
-- Мастер-пароль → Argon2id (64 МБ, 3 итерации, 4 потока) → корневой ключ.
-- Из корня через HKDF-SHA256 выводятся ключ SQLCipher и KEK.
-- Пароль каждой записи шифруется ChaCha20-Poly1305 (BouncyCastle, nonce
-  96 бит) собственным случайным ключом. Этот ключ хранится в таблице
-  `entry_fields`, завёрнутый в KEK. AAD содержит id записи и тип поля, так что
-  блок не переносится в другую запись.
-- Метаданные записи (название, логин, домен) лежат в БД открытым текстом;
-  защищает их только SQLCipher.
-- Проверочный блок под KEK (хранится в настройках и в бэкапе) отличает
-  неверный пароль от сбоя БД. Сбой БД или миграции в счётчик попыток не входит.
-- 10 неверных паролей подряд удаляют БД и настройки. Счётчик растёт до вывода
-  ключа и пишется через `commit()`, поэтому убийство процесса попытку не
-  отменяет.
-- Хранилища до v0.5 проверочного блока не имеют: пока его нет, неудачное
-  открытие SQLCipher считается неверным паролем. Блок записывается при первой
-  успешной разблокировке.
+- Master password → Argon2id (64 MB, 3 iterations, 4 threads) → root key.
+- The SQLCipher key and KEK are derived from the root using HKDF-SHA256.
+- Each entry's password is encrypted with ChaCha20-Poly1305 (BouncyCastle, 96-bit nonce) using its own random key. This key is stored in the "entry_fields" table, wrapped in the KEK. The AAD contains the entry ID and field type, so the block cannot be moved to another entry.
+- Entry metadata (name, username, domain) is stored in the database as plaintext; only SQLCipher protects it.
+- A verification block under the KEK (stored in settings and in the backup) distinguishes an incorrect password from a database failure. Database or migration failures do not count toward the attempt counter.
+- 10 consecutive incorrect passwords delete the database and settings. The counter is incremented before key derivation and written using "commit()", so killing the process does not cancel the attempt.
+- Vaults before v0.5 do not have a verification block: until one exists, a failed SQLCipher opening is treated as an incorrect password. The block is written on the first successful unlock.
 
-## Схема БД и бэкап
+Database Schema and Backup
 
-Room, версия 2, JSON схем пишется в `app/schemas`. Миграция 1→2 создаёт
-`entry_fields`, пароли переносятся при первой разблокировке одной транзакцией.
-Перед обновлением с v0.5 сделайте бэкап.
+Room, version 2; JSON schemas are written to "app/schemas". Migration 1→2 creates
+"entry_fields"; passwords are moved during the first unlock in a single transaction.
+Make a backup before upgrading from v0.5.
 
-Формат бэкапа: `"SKVB" | 0x02 | длина соли | соль | длина проверочного блока |
-проверочный блок | БД`. Старый формат (`длина соли | соль | БД`) тоже
-импортируется. Содержимое БД до разблокировки не проверить, поэтому при
-импорте проверяются заголовок, размер (до 128 МБ) и непустота файла.
+Backup format: ""SKVB" | 0x02 | salt length | salt | verification block length | verification block | database". The old format ("salt length | salt | database") is also
+imported. The database contents cannot be checked before unlocking, so during
+import, the header, size (up to 128 MB), and non-empty file contents are checked.
 
-## Автоблокировка
+Auto-Lock
 
-Таймер блокирует vault через 1–30 минут после ухода в фон. При возврате в
-приложение дополнительно сверяется монотонное время.
+A timer locks the vault 1–30 minutes after the app goes into the background. When returning to
+the app, monotonic time is also checked.
 
-## Генератор
+Generator
 
-- Пароль 8–128 символов из выбранных классов, опция «без похожих символов».
-  Каждый выбранный класс присутствует в пароле. Энтропия считается точно.
-- PIN 4–12 цифр.
-- Фраза из 4–12 слов. Нужен `app/src/main/assets/wordlist.txt` (не меньше 1024
-  слов, по одному в строке, формат EFF читается). Файла в репозитории нет,
-  без него режим скрыт.
+- Password of 8–128 characters from selected character classes, with an option to exclude similar characters.
+  Each selected class is present in the password. Entropy is calculated exactly.
+- PIN of 4–12 digits.
+- Passphrase of 4–12 words. Requires "app/src/main/assets/wordlist.txt" (at least 1024
+  words, one per line; the EFF format is supported). The file is not in the repository,
+  so this mode is hidden without it.
 
-## Автозаполнение
+Autofill
 
-Подставляет только при точном совпадении домена. Если на странице два разных
-домена (например, iframe), форма не заполняется. Дубликат (тот же домен и
-логин) при сохранении пропускается.
+Fills in credentials only when the domain matches exactly. If a page contains two different
+domains (for example, an iframe), the form is not filled. Duplicates (same domain and
+username) are skipped when saving.
 
-## Ограничения
+Limitations
 
-- Compose `TextField` работает только со `String`, поэтому мастер-пароль на
-  экране разблокировки и показанный пароль какое-то время лежат в куче как
-  `String`.
-- Счётчик попыток хранится в `EncryptedSharedPreferences`; при root на
-  устройстве его можно сбросить.
-- Импорт заменяет текущее хранилище и требует пароль от бэкапа.
+- Compose "TextField" works only with "String", so the master password on
+  the unlock screen and the displayed password remain in the heap as "String" for some time.
+- The attempt counter is stored in "EncryptedSharedPreferences"; with root access
+  to the device, it can be reset.
+- Import replaces the current vault and requires the backup password.
 
-## Не реализовано
+Not Implemented
 
-Смена мастер-пароля (`rewrapFieldKey` готов, нужны ещё rekey SQLCipher и новая
-соль), редактирование записи, возврат результата разблокировки в
-автозаполнение, диалог подтверждения сохранения, привязка нативных приложений
-по пакету и подписи.
+Changing the master password ("rewrapFieldKey" is ready, but SQLCipher rekeying and a new
+salt are still needed), editing entries, returning the unlock result to
+autofill, a save confirmation dialog, and binding native apps by package name and signature.
 
-## Сборка и тесты
+Build and Tests
 
-Android Studio Koala или новее, JDK 17. Открыть корневую папку, дождаться
-Gradle Sync, `Build → Build APK(s)`. Тесты: `./gradlew testDebugUnitTest`.
-Затем включить автозаполнение: Настройки → Система → Языки и ввод →
-Автозаполнение → Skhoron Vault.
+Android Studio Koala or newer, JDK 17. Open the root folder, wait for
+Gradle Sync, then select "Build → Build APK(s)". Tests: "./gradlew testDebugUnitTest".
+Then enable autofill: Settings → System → Languages & input →
+Autofill → Skhoron Vault.
